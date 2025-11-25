@@ -40,7 +40,7 @@ Frontend Dashboard (Next.js)
 
 ```bash
 # Clone repository
-git clone https://github.com/YOUR_USERNAME/ml-monitoring-system.git
+git clone https://github.com/Isuruigi/ml-monitoring-system.git
 cd ml-monitoring-system
 
 # Configure environment
@@ -180,10 +180,6 @@ This project is licensed under the MIT License - see [LICENSE](LICENSE) file.
 - [ ] Multi-model support
 - [ ] A/B testing framework
 - [ ] Cloud deployment guides (AWS/GCP/Azure)
-
-## 📧 Contact
-
-For questions or support, please open an issue on GitHub.
 
 ---
 
