@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(.\\venv_ml\\Scripts\\pip.exe install:*)",
+      "Bash(venv_ml/Scripts/pip.exe install:*)",
+      "Bash(venv_ml/Scripts/python.exe -m uvicorn:*)",
+      "Bash(npm install:*)",
+      "Bash(npm run dev:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
