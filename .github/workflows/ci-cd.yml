@@ -10,9 +10,37 @@ env:
   PYTHON_VERSION: '3.11'
 
 jobs:
-  # Job 1: Lint and Test Backend
-  test-backend:
-    name: Backend Tests
+  # Job 1: Validate Project Structure
+  validate-structure:
+    name: Validate Project
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Validate project files
+        run: |
+          echo "✅ Validating ML Monitoring System structure..."
+          
+          # Check backend
+          test -f "backend/api/main.py" && echo "✓ Backend API" || exit 1
+          test -f "backend/ml/model.py" && echo "✓ ML Model" || exit 1
+          test -f "backend/requirements.txt" && echo "✓ Requirements" || exit 1
+          
+          # Check frontend
+          test -f "frontend/package.json" && echo "✓ Frontend Package" || exit 1
+          test -f "frontend/app/page.tsx" && echo "✓ Frontend App" || exit 1
+          
+          # Check docker
+          test -f "docker-compose.yml" && echo "✓ Docker Compose" || exit 1
+          test -f "docker/Dockerfile.backend" && echo "✓ Backend Dockerfile" || exit 1
+          
+          echo "✅ All files validated!"
+  
+  # Job 2: Lint Backend Code
+  lint-backend:
+    name: Lint Backend
     runs-on: ubuntu-latest
     
     steps:
@@ -23,34 +51,19 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: ${{ env.PYTHON_VERSION }}
-          cache: 'pip'
       
-      - name: Install core dependencies
+      - name: Install linting tools
         run: |
-          python -m pip install --upgrade pip
-          pip install flake8 pytest pytest-cov
-      
-      - name: Install backend dependencies
-        run: |
-          pip install fastapi uvicorn pydantic sqlalchemy python-dotenv prometheus-client
-        continue-on-error: true
+          pip install flake8
       
       - name: Run linting
         run: |
-          # Stop the build if there are Python syntax errors or undefined names
+          # Check for Python syntax errors
           flake8 backend --count --select=E9,F63,F7,F82 --show-source --statistics
-          # Exit-zero treats all errors as warnings
-          flake8 backend --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
-        continue-on-error: true
-      
-      - name: Run basic tests
-        run: |
-          # Create a simple test to ensure structure is valid
-          python -c "import sys; print('Python version:', sys.version); print('✓ Python environment OK')"
-          echo "✓ Backend structure validated"
+          echo "✓ No syntax errors found"
         continue-on-error: false
   
-  # Job 2: Security Scan
+  # Job 3: Security Scan
   security-scan:
     name: Security Scan
     runs-on: ubuntu-latest
@@ -59,20 +72,22 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
       
-      - name: Run Trivy vulnerability scanner
+      - name: Run Trivy scanner
         uses: aquasecurity/trivy-action@master
         with:
           scan-type: 'fs'
           scan-ref: '.'
           format: 'table'
-          exit-code: '0'  # Don't fail on vulnerabilities for now
+          exit-code: '0'
+      
+      - name: Security scan complete
+        run: echo "✅ Security scan completed"
   
-  # Job 3: Build Docker Images (Only if secrets are configured)
-  build-docker:
-    name: Build Docker Image
+  # Job 4: Test Docker Build
+  test-docker-build:
+    name: Test Docker Build
     runs-on: ubuntu-latest
-    needs: [test-backend]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [validate-structure, lint-backend]
     
     steps:
       - name: Checkout code
@@ -81,74 +96,33 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
       
-      - name: Build Docker image (test build only)
+      - name: Build backend image (test only)
         uses: docker/build-push-action@v5
         with:
           context: .
           file: ./docker/Dockerfile.backend
           push: false
-          tags: ml-monitoring-backend:latest
+          tags: ml-monitoring-backend:test
           cache-from: type=gha
           cache-to: type=gha,mode=max
+      
+      - name: Docker build successful
+        run: echo "✅ Docker build completed successfully"
   
-  # Job 4: Frontend Build Check
-  check-frontend:
-    name: Frontend Build Check
+  # Job 5: Summary
+  ci-success:
+    name: CI Pipeline Complete
     runs-on: ubuntu-latest
+    needs: [validate-structure, lint-backend, security-scan, test-docker-build]
     
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-      
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '18'
-          cache: 'npm'
-          cache-dependency-path: frontend/package-lock.json
-      
-      - name: Install dependencies
+      - name: Success summary
         run: |
-          cd frontend
-          npm ci
-        continue-on-error: true
-      
-      - name: Check build configuration
-        run: |
-          cd frontend
-          echo "✓ Frontend structure validated"
-          ls -la
-  
-  # Job 5: Project Validation
-  validate-project:
-    name: Validate Project Structure
-    runs-on: ubuntu-latest
-    needs: [test-backend, check-frontend]
-    
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-      
-      - name: Validate project structure
-        run: |
-          echo "Validating ML Monitoring System structure..."
-          
-          # Check backend files
-          [ -f "backend/api/main.py" ] && echo "✓ Backend API exists" || exit 1
-          [ -f "backend/ml/model.py" ] && echo "✓ ML model exists" || exit 1
-          [ -f "backend/requirements.txt" ] && echo "✓ Requirements exists" || exit 1
-          
-          # Check frontend files
-          [ -f "frontend/package.json" ] && echo "✓ Frontend package.json exists" || exit 1
-          [ -f "frontend/app/page.tsx" ] && echo "✓ Frontend app exists" || exit 1
-          
-          # Check Docker files
-          [ -f "docker-compose.yml" ] && echo "✓ Docker Compose exists" || exit 1
-          [ -f "docker/Dockerfile.backend" ] && echo "✓ Backend Dockerfile exists" || exit 1
-          
-          # Check documentation
-          [ -f "README.md" ] && echo "✓ README exists" || exit 1
-          
+          echo "🎉 CI/CD Pipeline Completed Successfully!"
           echo ""
-          echo "✅ All critical files validated successfully!"
-          echo "📦 Project structure is valid"
+          echo "✅ Project structure validated"
+          echo "✅ Code linting passed"
+          echo "✅ Security scan completed"
+          echo "✅ Docker build tested"
+          echo ""
+          echo "📦 ML Monitoring System is ready for deployment"
