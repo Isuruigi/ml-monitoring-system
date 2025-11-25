@@ -8,6 +8,7 @@ on:
 
 env:
   PYTHON_VERSION: '3.11'
+  # Updated: 2025-11-25 - Simplified pipeline (no Docker build)
 
 jobs:
   # Job 1: Validate Project Structure
